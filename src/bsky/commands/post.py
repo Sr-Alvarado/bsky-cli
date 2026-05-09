@@ -3,17 +3,18 @@ from bsky.core.facets import parse_facets, has_urls, extract_first_url
 from bsky.core.media import upload_media, build_images_embed, build_video_embed
 from bsky.core.og import fetch_og_card
 from bsky.core.output import print_success, print_preview, confirm, print_error, print_info
+from bsky.core.text import unescape
 
 
 def handle_post(text: str | None, media: list[str], alt: list[str], lang: str, alias: str, y: bool, dry_run: bool):
     media = media or []
     alt = alt or []
+    text = unescape(text)
     if not text and not media:
         print_error("Se requiere al menos -t (texto) o -m (media)")
         return
 
     client = get_client(alias)
-    text = text or ""
     lang_list = [lang] if lang else ["es"]
 
     preview_data = {"text": text, "lang": lang}

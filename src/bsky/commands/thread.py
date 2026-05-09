@@ -3,12 +3,14 @@ from bsky.core.facets import parse_facets, has_urls, extract_first_url
 from bsky.core.media import upload_media, build_images_embed, build_video_embed
 from bsky.core.og import fetch_og_card
 from bsky.core.output import print_thread_success, print_preview, confirm, print_error, print_info
+from bsky.core.text import unescape
 
 
 def handle_thread(text: list[str], media: list[str], alt: list[str], lang: str, alias: str, y: bool, dry_run: bool):
     text = text or []
     media = media or []
     alt = alt or []
+    text = [unescape(t) for t in text]
     if not text:
         print_error("Se requiere al menos un -t para cada post del hilo")
         return
