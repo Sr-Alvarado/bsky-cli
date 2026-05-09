@@ -1,4 +1,3 @@
-import sys
 from bsky.core.client import get_client
 from bsky.core.facets import parse_facets, has_urls, extract_first_url
 from bsky.core.media import upload_media, build_images_embed, build_video_embed
@@ -6,27 +5,30 @@ from bsky.core.og import fetch_og_card
 from bsky.core.output import print_thread_success, print_preview, confirm, print_error, print_info
 
 
-def handle_thread(args):
-    if not args.text:
+def handle_thread(text: list[str], media: list[str], alt: list[str], lang: str, alias: str, y: bool, dry_run: bool):
+    text = text or []
+    media = media or []
+    alt = alt or []
+    if not text:
         print_error("Se requiere al menos un -t para cada post del hilo")
         return
 
-    client = get_client(args.alias)
-    lang = [args.lang] if args.lang else ["es"]
+    client = get_client(alias)
+    lang_list = [lang] if lang else ["es"]
 
-    posts = _parse_thread_args(args)
+    posts = _parse_thread_args(text, media, alt)
 
     if not posts:
         print_error("No se encontraron posts para el hilo")
         return
 
-    preview_data = {"posts": posts, "lang": args.lang}
+    preview_data = {"posts": posts, "lang": lang}
 
-    if args.dry_run:
+    if dry_run:
         print_preview("thread", preview_data)
         return
 
-    if not args.y:
+    if not y:
         print_preview("thread", preview_data)
         if not confirm():
             print_info("Cancelado")
@@ -38,49 +40,35 @@ def handle_thread(args):
         parent = None
 
         for post_data in posts:
-            text = post_data.get("text", "")
-            facets = parse_facets(client, text)
+            post_text = post_data.get("text", "")
+            facets = parse_facets(client, post_text)
             embed = _build_embed(client, post_data)
 
             if root is None:
-                result = client.send_post(text, langs=lang, facets=facets, embed=embed)
+                result = client.send_post(post_text, langs=lang_list, facets=facets, embed=embed)
                 root = {"uri": result.uri, "cid": result.cid}
                 parent = root
             else:
                 reply_to = {"root": root, "parent": parent}
-                result = client.send_post(text, langs=lang, facets=facets, embed=embed, reply_to=reply_to)
+                result = client.send_post(post_text, langs=lang_list, facets=facets, embed=embed, reply_to=reply_to)
                 parent = {"uri": result.uri, "cid": result.cid}
 
             url = f"https://bsky.app/profile/{client.me.handle}/post/{result.uri.split('/')[-1]}"
-            results.append({"text": text, "url": url, "uri": result.uri})
+            results.append({"text": post_text, "url": url, "uri": result.uri})
 
         print_thread_success(results)
     except Exception as e:
         print_error(str(e))
 
 
-def _parse_thread_args(args) -> list[dict]:
+def _parse_thread_args(texts: list[str], media_list: list[str], alt_list: list[str]) -> list[dict]:
     posts = []
-    current_post = {"text": None, "media": [], "alt": []}
-    alt_index = 0
-
-    texts = args.text if isinstance(args.text, list) else [args.text]
-    media_list = args.media if args.media else []
-    alt_list = args.alt if args.alt else []
-
-    media_per_post = []
-    current_media = []
-
-    for arg_media in media_list:
-        current_media.append(arg_media)
-
-    for i, text in enumerate(texts):
-        post = {"text": text, "media": [], "alt": []}
-        posts.append(post)
+    for t in texts:
+        posts.append({"text": t, "media": [], "alt": []})
 
     media_index = 0
     alt_idx = 0
-    for i, post in enumerate(posts):
+    for post in posts:
         if media_index < len(media_list):
             post["media"].append(media_list[media_index])
             media_index += 1

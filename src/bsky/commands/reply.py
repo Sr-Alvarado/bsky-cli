@@ -5,40 +5,42 @@ from bsky.core.og import fetch_og_card
 from bsky.core.output import print_success, print_preview, confirm, print_error, print_info
 
 
-def handle_reply(args):
-    if not args.text and not args.media:
+def handle_reply(text: str | None, media: list[str], alt: list[str], to: str, lang: str, alias: str, y: bool, dry_run: bool):
+    media = media or []
+    alt = alt or []
+    if not text and not media:
         print_error("Se requiere al menos -t (texto) o -m (media)")
         return
 
-    client = get_client(args.alias)
-    text = args.text or ""
-    lang = [args.lang] if args.lang else ["es"]
+    client = get_client(alias)
+    text = text or ""
+    lang_list = [lang] if lang else ["es"]
 
-    preview_data = {"text": text, "lang": args.lang, "to": args.to}
-    if args.media:
-        preview_data["media"] = args.media
-    if args.alt:
-        preview_data["alt"] = args.alt
+    preview_data = {"text": text, "lang": lang, "to": to}
+    if media:
+        preview_data["media"] = media
+    if alt:
+        preview_data["alt"] = alt
 
-    if args.dry_run:
+    if dry_run:
         print_preview("reply", preview_data)
         return
 
-    if not args.y:
+    if not y:
         print_preview("reply", preview_data)
         if not confirm():
             print_info("Cancelado")
             return
 
     try:
-        parent = _get_record_ref(client, args.to)
-        root = _get_root(client, args.to, parent)
+        parent = _get_record_ref(client, to)
+        root = _get_root(client, to, parent)
 
         facets = parse_facets(client, text)
-        embed = _build_embed(client, args, text)
+        embed = _build_embed(client, media, alt, text)
 
         reply_to = {"root": root, "parent": parent}
-        result = client.send_post(text, langs=lang, facets=facets, embed=embed, reply_to=reply_to)
+        result = client.send_post(text, langs=lang_list, facets=facets, embed=embed, reply_to=reply_to)
         url = f"https://bsky.app/profile/{client.me.handle}/post/{result.uri.split('/')[-1]}"
         print_success("Reply publicado", url=url, at_uri=result.uri, text=text)
     except Exception as e:
@@ -65,25 +67,25 @@ def _get_root(client, at_uri: str, parent: dict) -> dict:
     return parent
 
 
-def _build_embed(client, args, text: str) -> dict | None:
-    if args.media:
+def _build_embed(client, media: list[str], alt: list[str], text: str) -> dict | None:
+    if media:
         images = []
         video = None
         alt_index = 0
 
-        for filepath in args.media:
+        for filepath in media:
             result = upload_media(client, filepath)
             if result["type"] == "image":
                 alt_text = ""
-                if args.alt and alt_index < len(args.alt):
-                    alt_text = args.alt[alt_index]
+                if alt_index < len(alt):
+                    alt_text = alt[alt_index]
                     alt_index += 1
                 images.append({"blob": result["blob"], "alt": alt_text})
             elif result["type"] == "video":
                 video = result
                 alt_text = ""
-                if args.alt and alt_index < len(args.alt):
-                    alt_text = args.alt[alt_index]
+                if alt_index < len(alt):
+                    alt_text = alt[alt_index]
                 break
 
         if images:

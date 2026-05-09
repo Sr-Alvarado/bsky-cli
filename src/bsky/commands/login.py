@@ -3,20 +3,20 @@ from bsky.core.output import print_success, print_error
 from bsky.config import set_default_alias, get_default_alias, list_aliases
 
 
-def handle_login(args):
+def handle_login(handle: str, password: str, alias: str):
     try:
-        client = login_client(args.u, args.p, args.alias)
+        client = login_client(handle, password, alias)
         if get_default_alias() is None:
-            set_default_alias(args.alias)
-        print_success(f"Login exitoso como {args.alias}", at_uri=f"DID: {client.me.did}")
+            set_default_alias(alias)
+        print_success(f"Login exitoso como {alias}", at_uri=f"DID: {client.me.did}")
     except Exception as e:
         print_error(f"Credenciales inválidas: {e}")
 
 
-def handle_logout(args):
+def handle_logout(alias: str):
     aliases = list_aliases()
-    if args.alias.lower() not in aliases:
-        print_error(f"Cuenta '{args.alias}' no encontrada")
+    if alias.lower() not in aliases:
+        print_error(f"Cuenta '{alias}' no encontrada")
         return
-    logout_client(args.alias)
-    print_success(f"Logout exitoso ({args.alias})")
+    logout_client(alias)
+    print_success(f"Logout exitoso ({alias})")
